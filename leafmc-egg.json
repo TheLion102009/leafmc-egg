@@ -1,0 +1,77 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PANEL",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2025-10-04T12:30:00+00:00",
+    "name": "LeafMC",
+    "author": "The Lion (via ChatGPT)",
+    "uuid": "a7f3bc89-4d2e-4a1f-9b6c-8e5f7a2c1d9e",
+    "description": "LeafMC Server mit Versionauswahl 1.21.4-1.21.8 und automatischen Latest Builds",
+    "tags": [],
+    "features": [
+        "eula",
+        "java_version",
+        "pid_limit"
+    ],
+    "docker_images": {
+        "Java 21": "ghcr.io/pterodactyl/yolks:java_21"
+    },
+    "file_denylist": [],
+    "startup": "java -Xms512M -Xmx{{SERVER_MEMORY}}M -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+AlwaysPreTouch -XX:+DisableExplicitGC -XX:+PerfDisableSharedMem -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=16M -XX:G1ReservePercent=20 -XX:InitiatingHeapOccupancyPercent=15 -Dterminal.jline=false -Dterminal.ansi=true -jar {{SERVER_JARFILE}} nogui",
+    "config": {
+        "files": "{\n    \"server.properties\": {\n        \"parser\": \"properties\",\n        \"find\": {\n            \"server-ip\": \"0.0.0.0\",\n            \"server-port\": \"{{server.build.default.port}}\",\n            \"query.port\": \"{{server.build.default.port}}\"\n        }\n    }\n}",
+        "startup": "{\n    \"done\": \")! For help, type \"\n}",
+        "logs": "{}",
+        "stop": "stop"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/ash\n# LeafMC Installation Script\ncd /mnt/server\n\necho \"=== LeafMC Installation ===\"\n\n# Installiere jq wenn nicht vorhanden\nif ! command -v jq &> /dev/null; then\n    echo \"Installing jq...\"\n    apk add --no-cache jq curl\nfi\n\n# Minecraft Version\nif [ -n \"${MINECRAFT_VERSION}\" ]; then\n    MC_VERSION=\"${MINECRAFT_VERSION}\"\nelse\n    MC_VERSION=\"1.21.8\"\nfi\n\necho \"Minecraft Version: ${MC_VERSION}\"\n\n# Build Number ermitteln\nif [ -n \"${BUILD_NUMBER}\" ] && [ \"${BUILD_NUMBER}\" != \"latest\" ]; then\n    BUILD=\"${BUILD_NUMBER}\"\n    echo \"Using specified build: ${BUILD}\"\nelse\n    echo \"Fetching latest build for version ${MC_VERSION}...\"\n    \n    # API-Anfrage mit besserer Fehlerbehandlung\n    API_RESPONSE=$(curl -s \"https://api.leafmc.one/v2/projects/leaf/versions/${MC_VERSION}\")\n    \n    if [ -z \"$API_RESPONSE\" ]; then\n        echo \"ERROR: API returned empty response\"\n        echo \"Using fallback build 141 for version 1.21.8\"\n        MC_VERSION=\"1.21.8\"\n        BUILD=\"141\"\n    else\n        BUILD=$(echo \"$API_RESPONSE\" | jq -r '.builds[-1]' 2>/dev/null)\n        \n        if [ \"$BUILD\" = \"null\" ] || [ -z \"$BUILD\" ]; then\n            echo \"ERROR: Could not parse build number from API\"\n            echo \"API Response: $API_RESPONSE\"\n            echo \"Using fallback build 141 for version 1.21.8\"\n            MC_VERSION=\"1.21.8\"\n            BUILD=\"141\"\n        else\n            echo \"Latest build found: ${BUILD}\"\n        fi\n    fi\nfi\n\n# JAR Filename\nJAR_FILE=\"${SERVER_JARFILE:-server.jar}\"\n\necho \"Downloading LeafMC ${MC_VERSION} Build ${BUILD}...\"\necho \"Target file: ${JAR_FILE}\"\n\n# Download URL\nDOWNLOAD_URL=\"https://api.leafmc.one/v2/projects/leaf/versions/${MC_VERSION}/builds/${BUILD}/downloads/leaf-${MC_VERSION}-${BUILD}.jar\"\n\necho \"Download URL: ${DOWNLOAD_URL}\"\n\n# Alte Datei backupen\nif [ -f \"${JAR_FILE}\" ]; then\n    mv \"${JAR_FILE}\" \"${JAR_FILE}.old\"\n    echo \"Backed up old server jar\"\nfi\n\n# Download mit Statuscode-Check\nHTTP_CODE=$(curl -L -w \"%{http_code}\" -o \"${JAR_FILE}\" \"${DOWNLOAD_URL}\")\n\nif [ \"$HTTP_CODE\" != \"200\" ]; then\n    echo \"ERROR: Download failed with HTTP code ${HTTP_CODE}\"\n    echo \"Trying alternative fallback...\"\n    \n    # Fallback auf bekannte funktionierende Version\n    curl -L -o \"${JAR_FILE}\" \"https://api.leafmc.one/v2/projects/leaf/versions/1.21.8/builds/141/downloads/leaf-1.21.8-141.jar\"\nfi\n\n# Überprüfen ob Download erfolgreich war\nif [ ! -f \"${JAR_FILE}\" ] || [ ! -s \"${JAR_FILE}\" ]; then\n    echo \"FATAL ERROR: Could not download LeafMC!\"\n    echo \"File does not exist or is empty\"\n    ls -lah\n    exit 1\nfi\n\nFILE_SIZE=$(stat -c%s \"${JAR_FILE}\" 2>/dev/null || stat -f%z \"${JAR_FILE}\" 2>/dev/null)\necho \"Download successful! File size: ${FILE_SIZE} bytes\"\n\n# Server Properties\nif [ ! -f server.properties ]; then\n    echo \"Creating server.properties...\"\n    cat > server.properties << 'EOL'\nserver-name=LeafMC Server\nmotd=LeafMC Server\nserver-port=25565\nquery.port=25565\nserver-ip=0.0.0.0\nmax-players=20\nonline-mode=true\nEOL\nfi\n\n# EULA\nif [ ! -f eula.txt ]; then\n    echo \"Accepting EULA...\"\n    echo \"eula=true\" > eula.txt\nfi\n\necho \"=== Installation Complete ===\"\necho \"Version: ${MC_VERSION}\"\necho \"Build: ${BUILD}\"\necho \"JAR: ${JAR_FILE}\"\nls -lh \"${JAR_FILE}\"\necho \"Ready to start!\"",
+            "container": "ghcr.io/parkervcp/installers:alpine",
+            "entrypoint": "ash"
+        }
+    },
+    "variables": [
+        {
+            "sort": 1,
+            "name": "Minecraft Version",
+            "description": "Minecraft Version (1.21.4, 1.21.5, 1.21.6, 1.21.7, 1.21.8)",
+            "env_variable": "MINECRAFT_VERSION",
+            "default_value": "1.21.8",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "required",
+                "string"
+            ]
+        },
+        {
+            "sort": 2,
+            "name": "Build Number",
+            "description": "Build number or 'latest' for newest build",
+            "env_variable": "BUILD_NUMBER",
+            "default_value": "latest",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "required",
+                "string"
+            ]
+        },
+        {
+            "sort": 3,
+            "name": "Server Jar File",
+            "description": "Name of the server jar file",
+            "env_variable": "SERVER_JARFILE",
+            "default_value": "server.jar",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "required",
+                "regex:/^([\\w\\d._-]+)(\\.jar)$/"
+            ]
+        }
+    ]
+}
