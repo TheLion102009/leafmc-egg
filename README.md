@@ -153,7 +153,7 @@ This egg configuration is released under the MIT License.
 
 ## ⭐ Credits
 
-- **Created by**: The Lion (via ChatGPT)
+- **Created by**: TheLion102009
 - **LeafMC**: LeafMC Development Team
 - **Based on**: Pterodactyl/Pelican Egg Format
 
