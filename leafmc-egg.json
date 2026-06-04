@@ -9,7 +9,7 @@
   "author": "thorbenhess1@gmx.de",
   "description": "Leaf is a high-performance Minecraft server software – a fork of Paper focused on finding the balance between performance, vanilla mechanics, and stability. Downloaded from api.leafmc.one.",
   "tags": ["paper", "minecraft"],
-  "features": ["eula", "java_version", "pid_limit", "minecraft_plugins"],
+  "features": ["eula", "java_version", "pid_limit", "modrinth_plugins"],
   "docker_images": {
     "Java 21 (ghcr.io)": "ghcr.io/pterodactyl/yolks:java_21"
   },
